@@ -9,9 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
+  "react": "^18.2.0",
+  "react-dom": "^18.2.0",
+  "firebase": "^11.0.0"  <-- 加入這一行 (版本號可以用 11.0.0 或最新的)
+},
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
     "vite": "^5.0.0"
