@@ -68,31 +68,31 @@ export default function EquipmentBookingSystem() {
     loadBookings();
   }, []);
 
-  const loadBookings = async () => {
-    try {
-      const result = await window.storage.get('equipment-bookings');
-      if (result && result.value) {
-        setBookings(JSON.parse(result.value));
-      }
-    } catch (error) {
-      console.log('No existing bookings found');
-    } finally {
-      setLoading(false);
+  const loadBookings = () => {
+  try {
+    const saved = localStorage.getItem('equipment-bookings');
+    if (saved) {
+      setBookings(JSON.parse(saved));
     }
-  };
+  } catch (error) {
+    console.log('No existing bookings found');
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const saveBookings = async (newBookings) => {
-    // 先更新 React state（確保 UI 立即更新）
-    setBookings(newBookings);
-    
-    // 再保存到 storage
-    try {
-      await window.storage.set('equipment-bookings', JSON.stringify(newBookings));
-    } catch (error) {
-      console.error('Failed to save bookings:', error);
-      showNotification('儲存失敗，請重試', 'error');
-    }
-  };
+  const saveBookings = (newBookings) => {
+  // 先更新 React state（確保 UI 立即更新）
+  setBookings(newBookings);
+  
+  // 再保存到 storage
+  try {
+    localStorage.setItem('equipment-bookings', JSON.stringify(newBookings));
+  } catch (error) {
+    console.error('Failed to save bookings:', error);
+    showNotification('儲存失敗，請重試', 'error');
+  }
+};
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
