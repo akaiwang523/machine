@@ -134,7 +134,7 @@ export default function App() {
         createdAt: new Date().toISOString(),
       });
       
-      showNotification('預約成功！大家都會看到喔', 'success');
+      showNotification('預約成功！', 'success');
       
       setFormData({
         userName: '',
