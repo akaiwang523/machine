@@ -1,8 +1,11 @@
+// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-// ▼▼▼ 這裡請務必換成您剛剛在 Firebase 後台複製的那一串 Config ▼▼▼
-// 如果您忘記複製，請去 Firebase Console -> 專案設定 (齒輪圖示) -> 一般 -> 下滑到底部就看得到
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyCPM6djPYyZ_zMyf8fJ2qRnayHnLXIj-NE",
   authDomain: "machine-45f27.firebaseapp.com",
@@ -13,5 +16,6 @@ const firebaseConfig = {
   measurementId: "G-2874L084WT"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+const analytics = getAnalytics(app);
