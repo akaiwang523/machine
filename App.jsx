@@ -42,31 +42,15 @@ const formatDate = (dateStr) => {
   return date.toLocaleDateString('zh-TW', options);
 };
 
-// 儲存工具 (使用 localStorage)
-const storage = {
-  get: (key) => {
-    try {
-      const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : null;
-    } catch {
-      return null;
-    }
-  },
-  set: (key, value) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-      return true;
-    } catch {
-      return false;
-    }
-  }
-};
-
-export default function App() {
+export default function EquipmentBookingSystem() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('form');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedMonth, setSelectedMonth] = useState({ 
+    year: new Date().getFullYear(), 
+    month: new Date().getMonth() 
+  });
   const [notification, setNotification] = useState(null);
   
   // 表單狀態
@@ -81,16 +65,30 @@ export default function App() {
 
   // 載入預約資料
   useEffect(() => {
-    const savedBookings = storage.get('equipment-bookings');
-    if (savedBookings) {
-      setBookings(savedBookings);
-    }
-    setLoading(false);
+    loadBookings();
   }, []);
 
-  const saveBookings = (newBookings) => {
-    storage.set('equipment-bookings', newBookings);
-    setBookings(newBookings);
+  const loadBookings = async () => {
+    try {
+      const result = await window.storage.get('equipment-bookings');
+      if (result && result.value) {
+        setBookings(JSON.parse(result.value));
+      }
+    } catch (error) {
+      console.log('No existing bookings found');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveBookings = async (newBookings) => {
+    try {
+      await window.storage.set('equipment-bookings', JSON.stringify(newBookings));
+      setBookings(newBookings);
+    } catch (error) {
+      console.error('Failed to save bookings:', error);
+      showNotification('儲存失敗，請重試', 'error');
+    }
   };
 
   const showNotification = (message, type = 'success') => {
@@ -138,7 +136,7 @@ export default function App() {
   };
 
   // 提交預約
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -156,7 +154,7 @@ export default function App() {
     };
     
     const newBookings = [...bookings, newBooking];
-    saveBookings(newBookings);
+    await saveBookings(newBookings);
     
     showNotification('預約成功！', 'success');
     
@@ -172,27 +170,55 @@ export default function App() {
   };
 
   // 取消預約
-  const handleCancelBooking = (bookingId) => {
+  const handleCancelBooking = async (bookingId) => {
     const newBookings = bookings.filter(b => b.id !== bookingId);
-    saveBookings(newBookings);
+    await saveBookings(newBookings);
     showNotification('預約已取消', 'info');
+  };
+
+  // 取得特定日期的預約
+  const getBookingsForDate = (date) => {
+    return bookings.filter(b => b.date === date).sort((a, b) => 
+      timeToMinutes(a.startTime) - timeToMinutes(b.startTime)
+    );
   };
 
   // 取得設備的每日預約狀態
   const getEquipmentSchedule = (equipmentId, date) => {
-    return bookings.filter(b => b.equipmentId === equipmentId && b.date === date)
-      .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    return bookings.filter(b => b.equipmentId === equipmentId && b.date === date);
   };
 
-  // 生成日期選項 (今天起 14 天)
-  const getDateOptions = () => {
+  // 取得指定月份的所有日期
+  const getDatesInMonth = (year, month) => {
     const dates = [];
-    for (let i = 0; i < 14; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() + i);
-      dates.push(date.toISOString().split('T')[0]);
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      const date = new Date(year, month, d);
+      // 只顯示今天及之後的日期
+      if (date >= today) {
+        dates.push(date.toISOString().split('T')[0]);
+      }
     }
     return dates;
+  };
+
+  // 生成未來 6 個月的月份選項
+  const getMonthOptions = () => {
+    const months = [];
+    const today = new Date();
+    for (let i = 0; i < 6; i++) {
+      const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
+      months.push({
+        year: date.getFullYear(),
+        month: date.getMonth(),
+        label: date.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long' })
+      });
+    }
+    return months;
   };
 
   if (loading) {
@@ -365,9 +391,32 @@ export default function App() {
           <div style={styles.calendarContainer}>
             <h2 style={styles.sectionTitle}>預約看板</h2>
             
+            {/* 月份選擇 */}
+            <div style={styles.monthSelector}>
+              {getMonthOptions().map((m, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setSelectedMonth({ year: m.year, month: m.month });
+                    // 自動選擇該月份的第一個可用日期
+                    const dates = getDatesInMonth(m.year, m.month);
+                    if (dates.length > 0) {
+                      setSelectedDate(dates[0]);
+                    }
+                  }}
+                  style={{
+                    ...styles.monthButton,
+                    ...(selectedMonth.year === m.year && selectedMonth.month === m.month ? styles.monthButtonActive : {}),
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
             {/* 日期選擇 */}
             <div style={styles.dateSelector}>
-              {getDateOptions().slice(0, 7).map(date => (
+              {getDatesInMonth(selectedMonth.year, selectedMonth.month).map(date => (
                 <button
                   key={date}
                   onClick={() => setSelectedDate(date)}
@@ -691,10 +740,35 @@ const styles = {
     padding: '24px',
     border: '1px solid #334155',
   },
-  dateSelector: {
+  monthSelector: {
     display: 'flex',
     gap: '8px',
     overflowX: 'auto',
+    paddingBottom: '16px',
+    marginBottom: '8px',
+    borderBottom: '1px solid #334155',
+  },
+  monthButton: {
+    padding: '10px 16px',
+    border: '1px solid #475569',
+    borderRadius: '8px',
+    backgroundColor: '#0f172a',
+    color: '#94a3b8',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.2s',
+  },
+  monthButtonActive: {
+    backgroundColor: '#1e3a5f',
+    borderColor: '#3b82f6',
+    color: '#3b82f6',
+  },
+  dateSelector: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '8px',
     paddingBottom: '8px',
   },
   dateButton: {
@@ -863,6 +937,11 @@ const styles = {
     color: '#94a3b8',
     margin: 0,
   },
+  bookingContact: {
+    fontSize: '13px',
+    color: '#64748b',
+    margin: 0,
+  },
   cancelButton: {
     padding: '8px 16px',
     backgroundColor: 'transparent',
@@ -881,3 +960,25 @@ const styles = {
     borderTop: '1px solid #1e293b',
   },
 };
+
+// CSS 動畫
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  input:focus, select:focus {
+    border-color: #3b82f6 !important;
+  }
+  button:hover {
+    filter: brightness(1.1);
+  }
+  .cancelButton:hover {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+  }
+`;
+document.head.appendChild(styleSheet);
